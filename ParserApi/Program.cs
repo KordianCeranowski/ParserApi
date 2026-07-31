@@ -53,10 +53,9 @@ IResult ParseCsv(string content)
     try
     {
         using var reader = new StringReader(content);
-        using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
-        var rows = csv.GetRecords<dynamic>().ToList();
-
-        return Results.Ok(new { status = "Success", processedCount = rows.Count, data = rows });
+        using var csvReader = new CsvReader(reader, CultureInfo.InvariantCulture);
+        dynamic[] csvContents = csvReader.GetRecords<dynamic>().ToArray();
+        return Results.Ok(new { status = "Success", processedCount = csvContents.Length, data = csvContents });
     }
     catch (CsvHelperException)
     {
@@ -68,9 +67,15 @@ IResult ParseJson(string content)
 {
     try
     {
-        var json = JsonSerializer.Deserialize<JsonElement>(content);
-        var count = json.ValueKind == JsonValueKind.Array ? json.GetArrayLength() : 1;
-        return Results.Ok(new { status = "Success", processedCount = count, data = json });
+        JsonElement data = JsonSerializer.Deserialize<JsonElement>(content);
+        // Standardize data into an Array
+        JsonElement[] jsonContents;
+        if (data.ValueKind == JsonValueKind.Array)
+            jsonContents = [.. data.EnumerateArray()];
+        else
+            jsonContents = [data];
+        return Results.Ok(new { status = "Success", processedCount = jsonContents.Length, data = jsonContents });
+
     }
     catch (JsonException)
     {
