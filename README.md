@@ -5,7 +5,7 @@
 ```ps1
 dotnet restore
 dotnet build
-dotnet dotnet run --project ParserApi\ParserApi.csproj
+dotnet run --project ParserApi\ParserApi.csproj
 ```
 
 ## How to test
