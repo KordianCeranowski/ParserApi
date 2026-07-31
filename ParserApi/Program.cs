@@ -24,7 +24,6 @@ app.MapPost("/api/v1/parse-content", (HttpContext context, ParseRequest request)
         return Results.BadRequest(new { status = "Error", message = "Unsupported type." });
 
 
-    // Decode content from base64 to string
     string decoded;
     try
     {
@@ -36,27 +35,48 @@ app.MapPost("/api/v1/parse-content", (HttpContext context, ParseRequest request)
         return Results.BadRequest(new { status = "Error", message = "Content is not valid Base64." });
     }
 
-    
-    if (contentType == ContentType.CSV)
+    switch (contentType)
     {
-        using var reader = new StringReader(decoded);
+        case ContentType.CSV:
+            return ParseCsv(decoded);
+
+        case ContentType.INTERNAL_JSON:
+            return ParseJson(decoded);
+
+        default:
+            return Results.BadRequest(new { status = "Error", message = "Unsupported type." });
+    }
+});
+
+IResult ParseCsv(string content)
+{
+    try
+    {
+        using var reader = new StringReader(content);
         using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
         var rows = csv.GetRecords<dynamic>().ToList();
 
         return Results.Ok(new { status = "Success", processedCount = rows.Count, data = rows });
     }
+    catch (CsvHelperException)
+    {
+        return Results.BadRequest(new { status = "Error", message = "Invalid CSV content" });
+    }
+}
 
+IResult ParseJson(string content)
+{
     try
     {
-        var json = JsonSerializer.Deserialize<JsonElement>(decoded);
+        var json = JsonSerializer.Deserialize<JsonElement>(content);
         var count = json.ValueKind == JsonValueKind.Array ? json.GetArrayLength() : 1;
         return Results.Ok(new { status = "Success", processedCount = count, data = json });
     }
-    catch
+    catch (JsonException)
     {
-        return Results.BadRequest(new { status = "Error", message = "Invalid INTERNAL_JSON payload." });
+        return Results.BadRequest(new { status = "Error", message = "Invalid INTERNAL_JSON content" });
     }
-});
+}
 
 app.Run();
 
